@@ -9,11 +9,12 @@ from utils.responses import ApiError
 
 GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+AIR_QUALITY_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
 REQUEST_TIMEOUT_SECONDS = 10
 
 CURRENT_FIELDS = (
     "temperature_2m,relative_humidity_2m,apparent_temperature,is_day,"
-    "precipitation,weather_code,wind_speed_10m,wind_direction_10m"
+    "precipitation,weather_code,wind_speed_10m,wind_direction_10m,pressure_msl"
 )
 HOURLY_FIELDS = (
     "temperature_2m,relative_humidity_2m,apparent_temperature,"
@@ -22,7 +23,7 @@ HOURLY_FIELDS = (
 DAILY_FIELDS = (
     "weather_code,temperature_2m_max,temperature_2m_min,"
     "apparent_temperature_max,apparent_temperature_min,sunrise,sunset,"
-    "precipitation_sum,precipitation_probability_max,wind_speed_10m_max"
+    "precipitation_sum,precipitation_probability_max,wind_speed_10m_max,uv_index_max"
 )
 
 
@@ -257,3 +258,30 @@ def get_location_and_forecast(city, latitude_text, longitude_text):
         city, latitude_text, longitude_text
     )
     return location, raw
+
+
+def get_location_and_air_quality_with_meta(city, latitude_text, longitude_text, refresh=False):
+    """Resolve location and fetch current air quality (US AQI, PM2.5, PM10) with cache metadata."""
+    location = resolve_location(city, latitude_text, longitude_text, refresh=refresh)
+    lat, lon = location["latitude"], location["longitude"]
+    params = {
+        "latitude": lat,
+        "longitude": lon,
+        "current": "us_aqi,pm2_5,pm10",
+        "timezone": "auto",
+    }
+    cache_key = f"aqi:{round(float(lat), 4)}:{round(float(lon), 4)}"
+    data, meta = _get_json_cached(
+        cache_key, AIR_QUALITY_URL, params, "forecast", refresh=refresh
+    )
+    current = data.get("current")
+    if not isinstance(current, dict):
+        raise ApiError("UPSTREAM_ERROR", "The air quality service sent incomplete data.", 502)
+    location["timezone"] = data.get("timezone") or location.get("timezone")
+    air_quality = {
+        "us_aqi": current.get("us_aqi"),
+        "pm2_5": current.get("pm2_5"),
+        "pm10": current.get("pm10"),
+        "time": current.get("time"),
+    }
+    return location, air_quality, meta

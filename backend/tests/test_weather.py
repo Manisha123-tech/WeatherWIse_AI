@@ -109,6 +109,16 @@ def fake_get(url, params=None, timeout=None):
         if params["name"] == "Nowhereville":
             return FakeResponse(200, {"generationtime_ms": 0.5})
         return FakeResponse(200, GEOCODE_PAYLOAD)
+    if "air-quality" in url:
+        return FakeResponse(200, {
+            "timezone": "Asia/Kolkata",
+            "current": {
+                "time": "2026-11-25T14:00",
+                "us_aqi": 72,
+                "pm2_5": 18.4,
+                "pm10": 32.1,
+            },
+        })
     return FakeResponse(200, build_forecast_payload())
 
 
@@ -206,6 +216,14 @@ class WeatherTests(unittest.TestCase):
         response = self.client.get("/api/does-not-exist")
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.get_json()["error"]["code"], "NOT_FOUND")
+
+    @patch("services.open_meteo.requests.get", side_effect=fake_get)
+    def test_air_quality_by_coordinates(self, mock_get):
+        response = self.client.get("/api/air-quality?latitude=23.34&longitude=85.31")
+        data = response.get_json()["data"]
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(data["air_quality"]["us_aqi"], 72)
+        self.assertEqual(data["air_quality"]["pm2_5"], 18.4)
 
 
 if __name__ == "__main__":

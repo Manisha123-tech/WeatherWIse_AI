@@ -74,3 +74,19 @@ def forecast():
     }
     payload.update(_build_metadata(meta))
     return success_response(payload)
+
+
+@weather_bp.route("/api/air-quality", methods=["GET"])
+def air_quality():
+    location, aq, meta = open_meteo.get_location_and_air_quality_with_meta(
+        request.args.get("city"),
+        request.args.get("latitude"),
+        request.args.get("longitude"),
+        refresh=_read_refresh_flag(),
+    )
+    payload = {
+        "location": location,
+        "air_quality": aq,
+    }
+    payload.update(_build_metadata(meta))
+    return success_response(payload)

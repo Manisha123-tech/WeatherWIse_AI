@@ -67,6 +67,7 @@ function SearchBar({ onSelect, placeholder = "Search city..." }) {
           {results.map((city) => (
             <li key={city.id}>
               <button
+                type="button"
                 onClick={() => handleSelect(city)}
                 className="w-full text-left px-4 py-2.5 hover:bg-sky-50 text-sm"
               >

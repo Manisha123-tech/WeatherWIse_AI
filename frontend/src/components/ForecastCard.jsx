@@ -1,8 +1,13 @@
 import { Droplets } from "lucide-react";
-import { getWeatherInfo, formatDay } from "../services/api";
+import { useAuth } from "../context/useAuth";
+import { convertTemp, formatDay, getWeatherInfo } from "../services/api";
 
 function ForecastCard({ day, isToday = false }) {
+  const { preferences } = useAuth();
+  const unit = preferences.temperature_unit;
   const info = getWeatherInfo(day.code);
+  const maxTemp = convertTemp(day.max, unit);
+  const minTemp = convertTemp(day.min, unit);
 
   return (
     <div
@@ -14,10 +19,10 @@ function ForecastCard({ day, isToday = false }) {
         {isToday ? "Today" : formatDay(day.date)}
       </p>
       <p className="text-4xl my-2">{info.icon}</p>
-      <p className="text-xs text-slate-500 h-8">{info.label}</p>
+      <p className="text-xs text-slate-500 h-8">{day.condition || info.label}</p>
       <p className="mt-1 font-bold text-slate-800">
-        {day.max}°{" "}
-        <span className="font-normal text-slate-400">{day.min}°</span>
+        {maxTemp ?? "—"}°{" "}
+        <span className="font-normal text-slate-400">{minTemp ?? "—"}°</span>
       </p>
       <p className="mt-1 flex items-center justify-center gap-1 text-xs text-sky-600">
         <Droplets size={12} />

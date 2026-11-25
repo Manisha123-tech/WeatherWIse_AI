@@ -46,6 +46,9 @@ Common HTTP status codes: `200` OK, `201` Created, `400` Invalid Input, `401` Un
 - **`GET /api/forecast?city={name}&hours={1..168}`** (also accepts `latitude` & `longitude`)
   - Optional: `hours` (`1..168`, default `24`), `refresh=true`.
   - Output: `location`, `hourly`, `daily` (7 days), `units`, and freshness metadata.
+- **`GET /api/air-quality?city={name}`** (also accepts `latitude` & `longitude`)
+  - Optional: `refresh=true`.
+  - Output: `location`, `air_quality` (`us_aqi`, `pm2_5`, `pm10`, `time`), and freshness metadata.
 
 ## 4. Multi-Location Comparison
 - **`GET /api/compare?cities=Ranchi,Delhi,Mumbai`**

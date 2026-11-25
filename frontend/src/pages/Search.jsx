@@ -1,21 +1,28 @@
 import { useEffect, useState } from "react";
 import { Clock } from "lucide-react";
 import {
-  ResponsiveContainer,
-  AreaChart,
   Area,
-  BarChart,
+  AreaChart,
   Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  Tooltip,
-  CartesianGrid,
 } from "recharts";
 
 import SearchBar from "../components/SearchBar";
 import WeatherCard from "../components/WeatherCard";
 import ForecastCard from "../components/ForecastCard";
-import { getWeather, getAirQuality, formatHour } from "../services/api";
+import { useAuth } from "../context/useAuth";
+import {
+  convertTemp,
+  formatHour,
+  getAirQuality,
+  getWeather,
+  tempSymbol,
+} from "../services/api";
 
 const STORAGE_KEY = "recentCities";
 
@@ -28,6 +35,7 @@ function loadRecent() {
 }
 
 export default function Search() {
+  const { user, preferences, savedLocations, saveLocation, removeLocation } = useAuth();
   const [city, setCity] = useState(null);
   const [weather, setWeather] = useState(null);
   const [air, setAir] = useState(null);
@@ -35,7 +43,6 @@ export default function Search() {
   const [error, setError] = useState("");
   const [recent, setRecent] = useState(loadRecent);
 
-  // load weather whenever a city is chosen
   useEffect(() => {
     if (!city) return;
     let cancelled = false;
@@ -52,8 +59,8 @@ export default function Search() {
           setWeather(w);
           setAir(a);
         }
-      } catch {
-        if (!cancelled) setError("Could not load weather. Check your internet.");
+      } catch (err) {
+        if (!cancelled) setError(err.message || "Could not load weather.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -68,7 +75,6 @@ export default function Search() {
   function handleSelect(selected) {
     setCity(selected);
 
-    // save to recent searches (no duplicates, max 6)
     const updated = [
       selected,
       ...recent.filter(
@@ -84,10 +90,31 @@ export default function Search() {
     }
   }
 
+  const unit = preferences.temperature_unit;
+  const tSym = tempSymbol(unit);
+
+  const savedMatch = city
+    ? savedLocations.find(
+        (s) =>
+          Math.abs(s.latitude - city.latitude) < 0.02 &&
+          Math.abs(s.longitude - city.longitude) < 0.02
+      )
+    : null;
+
+  async function handleToggleSave() {
+    if (!city || !user) return;
+    try {
+      if (savedMatch) await removeLocation(savedMatch.id);
+      else await saveLocation(city);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   const chartData = weather
     ? weather.hourly.map((h) => ({
         time: formatHour(h.time),
-        temp: h.temp,
+        temp: convertTemp(h.temp, unit),
         rain: h.rainChance ?? 0,
       }))
     : [];
@@ -96,7 +123,10 @@ export default function Search() {
     <div className="space-y-6 max-w-5xl">
       <div>
         <h2 className="text-2xl font-bold text-slate-800 mb-3">Search weather</h2>
-        <SearchBar onSelect={handleSelect} placeholder="Search any city in the world..." />
+        <SearchBar
+          onSelect={handleSelect}
+          placeholder="Search any city, town, or PIN code (e.g. 834001)..."
+        />
       </div>
 
       {/* recent searches */}
@@ -129,12 +159,18 @@ export default function Search() {
 
       {city && !loading && weather && (
         <>
-          <WeatherCard city={city} weather={weather} air={air} />
+          <WeatherCard
+            city={city}
+            weather={weather}
+            air={air}
+            isSaved={Boolean(savedMatch)}
+            onToggleSave={user ? handleToggleSave : undefined}
+          />
 
           {/* hourly temperature chart */}
           <section className="bg-white border border-slate-200 rounded-2xl p-4">
             <h3 className="text-lg font-semibold text-slate-800 mb-3">
-              Temperature, next 24 hours (°C)
+              Temperature, next 24 hours ({tSym})
             </h3>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
@@ -152,7 +188,7 @@ export default function Search() {
                   <Area
                     type="monotone"
                     dataKey="temp"
-                    name="Temp °C"
+                    name={`Temp ${tSym}`}
                     stroke="#0284c7"
                     strokeWidth={2}
                     fill="url(#tempFill)"

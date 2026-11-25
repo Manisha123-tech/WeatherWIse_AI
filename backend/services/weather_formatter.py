@@ -70,6 +70,7 @@ def format_current(raw):
         "humidity": current.get("relative_humidity_2m"),
         "wind_speed": current.get("wind_speed_10m"),
         "wind_direction": current.get("wind_direction_10m"),
+        "pressure": current.get("pressure_msl"),
         "precipitation": current.get("precipitation"),
         "weather_code": code,
         "condition": describe_weather_code(code),
@@ -89,6 +90,7 @@ def format_today(raw):
         "precipitation_sum": _value(daily.get("precipitation_sum"), 0),
         "precipitation_probability_max": _value(
             daily.get("precipitation_probability_max"), 0),
+        "uv_index_max": _value(daily.get("uv_index_max"), 0),
     }
 
 
@@ -155,5 +157,6 @@ def format_daily(raw):
             "precipitation_probability_max": _value(
                 daily.get("precipitation_probability_max"), index),
             "wind_speed_max": _value(daily.get("wind_speed_10m_max"), index),
+            "uv_index_max": _value(daily.get("uv_index_max"), index),
         })
     return items

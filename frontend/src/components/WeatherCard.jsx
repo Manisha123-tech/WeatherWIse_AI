@@ -1,9 +1,24 @@
-import { Droplets, Wind, Gauge, Sunrise, Sunset, Sun, Leaf } from "lucide-react";
 import {
-  getWeatherInfo,
-  getAqiInfo,
-  windDirectionText,
+  Bookmark,
+  BookmarkCheck,
+  Droplets,
+  Gauge,
+  Leaf,
+  Sun,
+  Sunrise,
+  Sunset,
+  Wind,
+} from "lucide-react";
+import { useAuth } from "../context/useAuth";
+import {
+  convertTemp,
+  convertWind,
   formatHour,
+  getAqiInfo,
+  getWeatherInfo,
+  tempSymbol,
+  windDirectionText,
+  windSymbol,
 } from "../services/api";
 
 function Stat({ icon: Icon, label, value }) {
@@ -18,46 +33,100 @@ function Stat({ icon: Icon, label, value }) {
   );
 }
 
-function WeatherCard({ city, weather, air }) {
-  const { current, daily } = weather;
+function WeatherCard({ city, weather, air, isSaved = false, onToggleSave }) {
+  const { preferences } = useAuth();
+  const tempUnit = preferences.temperature_unit;
+  const windUnit = preferences.wind_speed_unit;
+  const tSym = tempSymbol(tempUnit);
+  const wSym = windSymbol(windUnit);
+
+  const { current, daily, meta } = weather;
   const info = getWeatherInfo(current.code, current.isDay);
   const aqiInfo = getAqiInfo(air?.aqi);
-  const today = daily[0];
+  const today = daily[0] || {};
+
+  const tempNow = convertTemp(current.temp, tempUnit);
+  const feelsLike = convertTemp(current.feelsLike, tempUnit);
+  const todayHigh = convertTemp(today.max, tempUnit);
+  const todayLow = convertTemp(today.min, tempUnit);
+  const windNow = convertWind(current.wind, windUnit);
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 sm:p-6">
+      {meta?.warning && (
+        <div className="mb-4 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-xl px-3 py-2">
+          {meta.warning}
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">{city.name}</h2>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-2xl font-bold text-slate-800">{city.name}</h2>
+            {onToggleSave && (
+              <button
+                type="button"
+                onClick={onToggleSave}
+                className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                  isSaved
+                    ? "bg-sky-50 border-sky-200 text-sky-700"
+                    : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                {isSaved ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
+                {isSaved ? "Saved" : "Save"}
+              </button>
+            )}
+          </div>
           <p className="text-sm text-slate-500">
             {[city.admin1, city.country].filter(Boolean).join(", ")}
           </p>
-          <p className="mt-3 text-slate-600">{info.label}</p>
+          <p className="mt-3 text-slate-600">{current.condition || info.label}</p>
           <p className="text-sm text-slate-500">
-            H: {today.max}° &nbsp; L: {today.min}°
+            H: {todayHigh ?? "—"}° &nbsp; L: {todayLow ?? "—"}°
           </p>
         </div>
 
         <div className="flex items-center gap-4">
           <span className="text-6xl">{info.icon}</span>
           <div>
-            <p className="text-5xl font-bold text-slate-800">{current.temp}°C</p>
+            <p className="text-5xl font-bold text-slate-800">
+              {tempNow ?? "—"}
+              {tSym}
+            </p>
             <p className="text-sm text-slate-500">
-              Feels like {current.feelsLike}°C
+              Feels like {feelsLike ?? "—"}
+              {tSym}
             </p>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
-        <Stat icon={Droplets} label="Humidity" value={`${current.humidity}%`} />
+        <Stat
+          icon={Droplets}
+          label="Humidity"
+          value={current.humidity != null ? `${current.humidity}%` : "N/A"}
+        />
         <Stat
           icon={Wind}
           label="Wind"
-          value={`${current.wind} km/h ${windDirectionText(current.windDirection)}`}
+          value={
+            windNow != null
+              ? `${windNow} ${wSym} ${windDirectionText(current.windDirection)}`.trim()
+              : "N/A"
+          }
         />
-        <Stat icon={Gauge} label="Pressure" value={`${current.pressure} hPa`} />
-        <Stat icon={Sun} label="UV Index" value={today.uv} />
+        <Stat
+          icon={Gauge}
+          label="Pressure"
+          value={current.pressure != null ? `${current.pressure} hPa` : "N/A"}
+        />
+        <Stat
+          icon={Sun}
+          label="UV Index"
+          value={today.uv != null ? today.uv : "N/A"}
+        />
         <Stat icon={Sunrise} label="Sunrise" value={formatHour(today.sunrise)} />
         <Stat icon={Sunset} label="Sunset" value={formatHour(today.sunset)} />
         <div className="col-span-2 bg-slate-50 rounded-xl p-3 flex items-center gap-3">
@@ -70,6 +139,14 @@ function WeatherCard({ city, weather, air }) {
           </div>
         </div>
       </div>
+
+      {meta?.fetchedAt && (
+        <p className="mt-4 text-[11px] text-slate-400">
+          Source: {meta.source || "open-meteo"} ·{" "}
+          {meta.stale ? "Stale cache fallback" : meta.cached ? "Cached" : "Live"} ·{" "}
+          Updated {new Date(meta.fetchedAt).toLocaleTimeString()}
+        </p>
+      )}
     </div>
   );
 }

@@ -8,6 +8,7 @@ import {
   Target,
   Users,
   Plane,
+  UserCog,
 } from "lucide-react";
 
 const links = [
@@ -19,6 +20,7 @@ const links = [
   { to: "/accuracy", label: "Accuracy", icon: Target },
   { to: "/community", label: "Community", icon: Users },
   { to: "/travel", label: "Travel Planner", icon: Plane },
+  { to: "/account", label: "Account & Saved", icon: UserCog },
 ];
 
 function Sidebar({ open, setOpen }) {

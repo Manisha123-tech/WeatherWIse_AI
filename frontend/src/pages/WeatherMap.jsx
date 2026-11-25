@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import {
   MapContainer,
-  TileLayer,
   Marker,
   Popup,
+  TileLayer,
   useMap,
   useMapEvents,
 } from "react-leaflet";
@@ -18,9 +18,15 @@ import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import SearchBar from "../components/SearchBar";
 import WeatherCard from "../components/WeatherCard";
 import ForecastCard from "../components/ForecastCard";
-import { getWeather, getAirQuality, getWeatherInfo } from "../services/api";
+import { useAuth } from "../context/useAuth";
+import {
+  convertTemp,
+  getAirQuality,
+  getWeather,
+  getWeatherInfo,
+  tempSymbol,
+} from "../services/api";
 
-// fix: default marker icon does not show in Vite
 const defaultIcon = L.icon({
   iconUrl: markerIcon,
   iconRetinaUrl: markerIcon2x,
@@ -33,7 +39,6 @@ const defaultIcon = L.icon({
 
 const START = { latitude: 23.3441, longitude: 85.3096 }; // Ranchi
 
-// listens for clicks on the map
 function ClickHandler({ onPick }) {
   useMapEvents({
     click(e) {
@@ -43,7 +48,6 @@ function ClickHandler({ onPick }) {
   return null;
 }
 
-// moves the map when the selected place changes
 function FlyTo({ position }) {
   const map = useMap();
   useEffect(() => {
@@ -57,6 +61,10 @@ function FlyTo({ position }) {
 }
 
 export default function WeatherMap() {
+  const { preferences } = useAuth();
+  const tUnit = preferences.temperature_unit;
+  const tSym = tempSymbol(tUnit);
+
   const [place, setPlace] = useState({
     name: "Ranchi",
     admin1: "Jharkhand",
@@ -71,7 +79,6 @@ export default function WeatherMap() {
   const [radarOn, setRadarOn] = useState(false);
   const [radarUrl, setRadarUrl] = useState(null);
 
-  // load weather for the selected place
   useEffect(() => {
     let cancelled = false;
 
@@ -87,8 +94,8 @@ export default function WeatherMap() {
           setWeather(w);
           setAir(a);
         }
-      } catch {
-        if (!cancelled) setError("Could not load weather for this spot.");
+      } catch (err) {
+        if (!cancelled) setError(err.message || "Could not load weather for this spot.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -100,7 +107,6 @@ export default function WeatherMap() {
     };
   }, [place]);
 
-  // load the latest rain radar frame (optional layer)
   useEffect(() => {
     if (!radarOn || radarUrl) return;
 
@@ -175,9 +181,10 @@ export default function WeatherMap() {
                 <div className="text-center">
                   <p className="font-semibold">{place.name}</p>
                   <p className="text-2xl">
-                    {info.icon} {weather.current.temp}°C
+                    {info.icon} {convertTemp(weather.current.temp, tUnit)}
+                    {tSym}
                   </p>
-                  <p className="text-xs">{info.label}</p>
+                  <p className="text-xs">{weather.current.condition || info.label}</p>
                 </div>
               ) : (
                 "Loading..."
