@@ -8,7 +8,9 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 def _parse_cors_origins(value):
     if not value or value.strip() == "*":
         return "*"
-    origins = [origin.strip() for origin in value.split(",") if origin.strip()]
+    origins = [
+        origin.strip().rstrip("/") for origin in value.split(",") if origin.strip()
+    ]
     return origins or "*"
 
 
